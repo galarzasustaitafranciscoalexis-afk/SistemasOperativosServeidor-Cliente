@@ -27,10 +27,12 @@ int main()
     }
 
     listen(socketServer, 10);   //Escuchar - Maximas conexiones escuchadas por ejecucion 10
-    sem_init(&mutexCustomers, 0, 1);    //Iicializacion del semaforo
+    sem_init(&mutexLog, 0, 1);  //Inicializacion del semaforo del archivo log
+    sem_init(&mutexCustomers, 0, 1);    //Iicializacion del semaforo de clientes
 
     printf("Server running...\n");  //Mensaje de confirmacion encendido
     startServer(socketServer);  //Iniciacion del servidor - Socket del serveidor
+    sem_destroy(&mutexLog);     //Liberar los recursos
     sem_destroy(&mutexCustomers);   //Liberar los recursos
     close(socketServer);    //Cerrar el puerto del server
 

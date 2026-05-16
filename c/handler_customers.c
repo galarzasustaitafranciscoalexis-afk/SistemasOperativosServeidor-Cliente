@@ -3,12 +3,62 @@
 
 Customer *customers[MAX_CUSTOMERS]; //Arreglo global de clientes - Usuarios conectados
 int totalCustomers = 0; //Total de ususarios conectados
-sem_t mutexCustomers;   //Semaforo
+sem_t mutexCustomers;   //Semaforo de clientes
+sem_t mutexLog;     //Semaforo de documento
+FILE *logFile = NULL;   //Archivo log
+char logName[100];   //Nombre del archivo
+
+//Creacion del archivo 
+void createLog()
+{
+    time_t currentTime;     //Varible para almacenar el tiempo actual del sistema
+    struct tm *timeInfo;    //Estructura de tiempo - Año, mes,dia, hora, minuto, segundo
+
+    time(&currentTime); //Hora actual del sistema
+    timeInfo = localtime(&currentTime);     //Conversion a una lectura mas facil
+
+    strftime(logName, sizeof(logName), "%Y%m%d_%H%M%S.txt", timeInfo);  //Construccion de cadena - Destino, tamaño, formato recivido, fuente de donde biene
+
+    logFile = fopen(logName, "a");  //Abri/Crear archivo - Modo de adicion
+}
+
+//Escribir en el archivo
+void writeLog(char message[])
+{
+    sem_wait(&mutexLog);    //Bloquear acceso al archivo
+
+    if(logFile != NULL) //Verificacion de archivo existente
+    {
+        fprintf(logFile, "%s", message);    //Escritura en el archivo - Destino, formato, mensaje
+        fflush(logFile);    //uerza escritura inmediata
+    }
+
+    sem_post(&mutexLog);     //Desbloque el acceso al archivo
+}
+
+//Cerrar el archivo log
+void closeLog()
+{
+    sem_wait(&mutexLog);    //Bloquea acceso al archivo 
+
+    if(logFile != NULL) //Verificacion de archivo existente
+    {  
+        fclose(logFile);//Cerrar el archivo
+        logFile = NULL; //Reiniciar el apuntador
+    }
+
+    sem_post(&mutexLog);  //Desbloquea el acceso al archivo
+}
 
 //Agregar cliente
 void addCustomer(Customer *customer) //Cliente a registrar
 {
     sem_wait(&mutexCustomers);  //Bloquea el arreglo de customers
+
+    if(totalCustomers == 0)
+    {
+        createLog();    //Crecion del archivo log
+    }
 
     if(totalCustomers < MAX_CUSTOMERS)
     {
@@ -36,6 +86,11 @@ void deleteCustomer(int socket) //Nuemero de socket
             }
             totalCustomers--;
 
+            if(totalCustomers == 0)
+            {
+                closeLog();
+            }
+
             break;
         }
     }
@@ -62,39 +117,43 @@ void broadcastMessage(char message[], int socketOrigin) //Mensaje - Socket de or
 void *handlerCustomer(void *arg)    //Apuntador a estructura de customers
 {
     Customer *customer = (Customer*)arg;    //Cliente asociado al hilo
-    char buffer[BUFFER + 1];    //Almaenar el mensaje
+    char buffer[BUFFER + 1];    //Almacenar el mensaje
 
-    if(recv(customer->socket, customer->user, sizeof(customer->user), 0) <= 0) //Recivir el nombre del usuario
+    if(recv(customer->socket, customer->user, sizeof(customer->user), 0) <= 0) //Recibir el nombre del usuario
     {
         close(customer->socket);    //Cierra el socket
-        free(customer); //Libera el espacio en memoria 
-        pthread_exit(NULL); //Sale del programa
+        free(customer); //Libera el espacio en memoria
+        pthread_exit(NULL); //Finaliza el hilo actual
     }
 
     customer->user[strcspn(customer->user, "\n")] = '\0';   //Asignacion del nombre del usuario
     addCustomer(customer);  //Añade al usuario
-    snprintf(buffer, sizeof(buffer), "SERVER: %s entered the chat!\n", customer->user); //Vienvenida al chat
-
+    snprintf(buffer, sizeof(buffer), "SERVER: %s entered the chat!\n", customer->user); //Bienvenida al chat
+    writeLog(buffer);   //Escritura en el archivo antes de mandar el mensaje
     broadcastMessage(buffer, customer->socket); //Mandar el mensaje
 
-    while(1)    //Espera
+    while(1)    //Espera mensajes del cliente
     {
-        int bytes;  
+        int bytes;  //Cantidad de bytes recibidos
+        char messageComplete[BUFFER + 100];   //Mensaje completo con nombre del usuario
         bytes = recv(customer->socket, buffer, BUFFER, 0);  //Mensaje recibido en bytes
 
-        if(bytes <= 0)
+        if(bytes <= 0) //Verifica desconexion del cliente
         {
             break;
         }
 
         buffer[bytes] = '\0';   //Final de la cadena
-        broadcastMessage(buffer, customer->socket); //Enviar el mensaje
+        snprintf(messageComplete, sizeof(messageComplete), "%s: %s", customer->user, buffer); //Construccion del mensaje completo
+        writeLog(messageComplete); //Escritura en el archivo
+        broadcastMessage(messageComplete, customer->socket); //Enviar el mensaje
     }
 
-    snprintf(buffer, sizeof(buffer), "SERVER: %s left the chat!\n", customer->user);    //Mensaje de confirmacion de recivido por el servidor
-    broadcastMessage(buffer, customer->socket); //Notificar del envio del mensaje
+    snprintf(buffer, sizeof(buffer), "SERVER: %s left the chat!\n", customer->user);    //Mensaje de salida del cliente
+    writeLog(buffer);   //Escritura en el archivo
+    broadcastMessage(buffer, customer->socket); //Notificar desconexion
     deleteCustomer(customer->socket);   //Eliminacion del usuario
     close(customer->socket);    //Cerrar la comunicacion
-    free(customer); //Liberar la memoria 
-    pthread_exit(NULL); //Salir del proceso
+    free(customer); //Liberar la memoria
+    pthread_exit(NULL); //Finaliza el hilo actual
 }

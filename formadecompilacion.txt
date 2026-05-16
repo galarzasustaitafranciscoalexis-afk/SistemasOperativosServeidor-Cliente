@@ -1,8 +1,8 @@
 Compilacion dentro de la carpeta donde se encuentran las otras carpetas: 
 
-gcc src/chat_multiuser.c src/server.c src/handler_customers.c -Iinclude -pthread -Wall -o server
+gcc c/chat_multiuser.c c/server.c c/handler_customers.c -Iinclude -pthread -o server
 
-gcc src/client.c -Iinclude -pthread -Wall -o client
+gcc c/client.c -Iinclude -pthread -o client
 
 Ejecucion:
 
