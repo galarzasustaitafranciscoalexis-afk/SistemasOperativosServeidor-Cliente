@@ -1,0 +1,10 @@
+Compilacion dentro de la carpeta donde se encuentran las otras carpetas: 
+
+gcc src/chat_multiuser.c src/server.c src/handler_customers.c -Iinclude -pthread -Wall -o server
+
+gcc src/client.c -Iinclude -pthread -Wall -o client
+
+Ejecucion:
+
+./server
+./client
