@@ -6,7 +6,7 @@ void *receiveMessage(void *arg) //Puntero generico de los argumentos
     int socketClient = *((int*)arg);    //Conversion del apuntador a int
     char buffer[BUFFER + 1];    //Almacena los mensajes recibidos
 
-    while(1)    //Eserando
+    while(1)    //Esperando
     {
         int bytes;
         bytes = recv(socketClient, buffer, BUFFER, 0);  //Bytes del mensaje recibido
@@ -58,16 +58,8 @@ int main()
 		
 		int bytes = recv(socketClient, message, BUFFER, 0); //Respuesta del servidor
 		
-		if(bytes <= 0) //Si se desconecto del servidor...
-		{
-			printf("Disconnected from server\n");
-			close(socketClient);
-			return 1;
-		}
-		
 		message[bytes] = '\0'; //Terminador de cadena
 		
-
 		if(strstr(message, "Error!") != NULL) // Si el nombre esta repetido
 		{
 			printf("%s\n", message);

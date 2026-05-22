@@ -184,6 +184,10 @@ void *handlerCustomer(void *arg)    //Apuntador a estructura de customers
         }
 
         buffer[bytes] = '\0';   //Final de la cadena
+		if(strcmp(buffer,"bye\n") == 0) //Comparacion de mensaje
+		{
+			break;
+		}
         snprintf(messageComplete, sizeof(messageComplete), "%s: %s", customer->user, buffer); //Construccion del mensaje completo
         writeLog(messageComplete); //Escritura en el archivo
         broadcastMessage(messageComplete, customer->socket); //Enviar el mensaje
