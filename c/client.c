@@ -80,6 +80,11 @@ int main()
     {
         fgets(message, sizeof(message), stdin); //Captura mensaje a enviar
         send(socketClient, message, strlen(message), 0);    //Manda el mensaje al servidor
+
+        if(strcmp(message, "bye\n") == 0)   //Verificacion de salida
+        {
+            break;  //Salir del ciclo
+        }
     }
 
     close(socketClient);    //Cierra la conexion

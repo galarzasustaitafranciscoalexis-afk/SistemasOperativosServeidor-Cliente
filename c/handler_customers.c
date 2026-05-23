@@ -154,8 +154,7 @@ void *handlerCustomer(void *arg)    //Apuntador a estructura de customers
 	
 		if(compareRepeated(customer->user)) //Si el nombre esta repetido...
 		{
-			snprintf(buffer, sizeof(buffer), 
-					 "SERVER: Error! Someone is already using this username.\n Enter a different username or press Ctrl+C to exit", customer->user); //Mensaje de error
+			snprintf(buffer, sizeof(buffer), "SERVER: Error! Someone is already using this username.\n Enter a different username or press Ctrl+C to exit");; //Mensaje de error
 			send(customer->socket, buffer, strlen(buffer), 0); //Mandar el mensaje de error al cliente
 			printf("Name duplicated: %s\n", customer->user); //Manda mensaje de error al server
 		}
