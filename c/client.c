@@ -6,7 +6,7 @@ void *receiveMessage(void *arg) //Puntero generico de los argumentos
     int socketClient = *((int*)arg);    //Conversion del apuntador a int
     char buffer[BUFFER + 1];    //Almacena los mensajes recibidos
 
-    while(1)    //Eserando
+    while(1)    //Esperando
     {
         int bytes;
         bytes = recv(socketClient, buffer, BUFFER, 0);  //Bytes del mensaje recibido
@@ -30,6 +30,7 @@ int main()
     struct sockaddr_in serverAddr;  //Direccion del servidor
     char user[50];  //Almacenara el nombre del usuario
     char message[BUFFER];   //Tamaño maximo de los mensaje
+	
 
     socketClient = socket(AF_INET, SOCK_STREAM, 0); //Creacion del socket - IPV4, Conexion estable, Protocolo
 
@@ -49,17 +50,41 @@ int main()
         exit(1);
     }
 
-    printf("Username: ");   //Peticion de nombre de usuario
-    fgets(user, sizeof(user), stdin);   //Lectura del nombre
-    send(socketClient, user, strlen(user), 0);  //Envio de datos al servidor - Socket propio. nombre de usuaion longitud, bandera
-
-    pthread_t thread;   //Hilo
-    pthread_create(&thread, NULL, receiveMessage, &socketClient);   //Creacion del hilo que recibira mensajes - Hilo,NULL, programa, destino 
-
+	while(1) //Ciclo de verificacion de nombre de usuario
+	{
+		printf("Username: ");   //Peticion de nombre de usuario
+		fgets(user, sizeof(user), stdin);   //Lectura del nombre
+		send(socketClient, user, strlen(user), 0);  //Envio de datos al servidor - Socket propio. nombre de usuaion longitud, bandera
+		
+		int bytes = recv(socketClient, message, BUFFER, 0); //Respuesta del servidor
+		
+		message[bytes] = '\0'; //Terminador de cadena
+		
+		if(strstr(message, "Error!") != NULL) // Si el nombre esta repetido
+		{
+			printf("%s\n", message);
+		}
+		else
+		{
+			printf("%s\n", message); //Si no lo esta, se sale del ciclo
+			break;
+		}
+		
+	}
+	
+	pthread_t thread;   //Hilo
+	pthread_create(&thread, NULL, receiveMessage, &socketClient);   //Creacion del hilo que recibira mensajes - Hilo,NULL, programa, destino 
+	
+	
     while(1)    //Espera
     {
         fgets(message, sizeof(message), stdin); //Captura mensaje a enviar
         send(socketClient, message, strlen(message), 0);    //Manda el mensaje al servidor
+
+        if(strcmp(message, "bye\n") == 0)   //Verificacion de salida
+        {
+            break;  //Salir del ciclo
+        }
     }
 
     close(socketClient);    //Cierra la conexion

@@ -45,5 +45,7 @@ void createLog();       //Creacion del archivo log
 
 void writeLog(char message[]);  //Escribir los mensajes en el archivo log - Recive un arreglo de mensaje
 void closeLog();    //Cerrar el archivo log
+int compareRepeated(char *name); // Compara si hay nombres repetidos
+
 
 #endif

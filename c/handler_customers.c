@@ -97,6 +97,26 @@ void deleteCustomer(int socket) //Nuemero de socket
     sem_post(&mutexCustomers);  //Desbloquea el arreglo de customers
 }
 
+//Comparar nombres y buscar repetidos
+int compareRepeated(char *name) //Nombre de usuario
+{
+	sem_wait(&mutexCustomers);  // Bloquear el arreglo de customers
+	int exists = 0;
+	int i;
+	
+	for(i = 0; i < totalCustomers; i++)
+	{
+		if(strcmp(customers[i]->user, name) == 0) //Compara los nombres en busca de alguna coincidencia
+		{
+			exists = 1;  // El nombre ya existe
+			break;
+		}
+	}
+	
+	sem_post(&mutexCustomers);  // Desbloquear el arreglo
+	return exists;
+}
+
 //Puente para el envio del mensaje a los usuarioa
 void broadcastMessage(char message[], int socketOrigin) //Mensaje - Socket de origen
 {
@@ -113,20 +133,39 @@ void broadcastMessage(char message[], int socketOrigin) //Mensaje - Socket de or
     sem_post(&mutexCustomers); //Desbloquea el arreglo de customers
 }
 
+
 //Manejador de clientes
 void *handlerCustomer(void *arg)    //Apuntador a estructura de customers
 {
     Customer *customer = (Customer*)arg;    //Cliente asociado al hilo
     char buffer[BUFFER + 1];    //Almacenar el mensaje
+	int nameAccepted = 0; //Comprobar si el nombre fue aceptado
 
-    if(recv(customer->socket, customer->user, sizeof(customer->user), 0) <= 0) //Recibir el nombre del usuario
-    {
-        close(customer->socket);    //Cierra el socket
-        free(customer); //Libera el espacio en memoria
-        pthread_exit(NULL); //Finaliza el hilo actual
-    }
+	while(!nameAccepted) //Mientras el nombre no sea aceptado...
+	{
+		if(recv(customer->socket, customer->user, sizeof(customer->user), 0) <= 0) //Recibir el nombre del usuario
+		{
+			close(customer->socket);    //Cierra el socket
+			free(customer); //Libera el espacio en memoria
+			pthread_exit(NULL); //Finaliza el hilo actual
+		}
 
-    customer->user[strcspn(customer->user, "\n")] = '\0';   //Asignacion del nombre del usuario
+		customer->user[strcspn(customer->user, "\n")] = '\0';   //Asignacion del nombre del usuario
+	
+		if(compareRepeated(customer->user)) //Si el nombre esta repetido...
+		{
+			snprintf(buffer, sizeof(buffer), "SERVER: Error! Someone is already using this username.\n Enter a different username or press Ctrl+C to exit");; //Mensaje de error
+			send(customer->socket, buffer, strlen(buffer), 0); //Mandar el mensaje de error al cliente
+			printf("Name duplicated: %s\n", customer->user); //Manda mensaje de error al server
+		}
+		else
+		{
+			nameAccepted = 1;  // Se acepto el nombre
+			snprintf(buffer, sizeof(buffer), "SERVER: Welcome to the chat!\n"); //Mensaje de confirmacion
+			send(customer->socket, buffer, strlen(buffer), 0); //Se envia el mensaje
+		}
+	}
+	
     addCustomer(customer);  //Añade al usuario
     snprintf(buffer, sizeof(buffer), "SERVER: %s entered the chat!\n", customer->user); //Bienvenida al chat
     writeLog(buffer);   //Escritura en el archivo antes de mandar el mensaje
@@ -144,6 +183,10 @@ void *handlerCustomer(void *arg)    //Apuntador a estructura de customers
         }
 
         buffer[bytes] = '\0';   //Final de la cadena
+		if(strcmp(buffer,"bye\n") == 0) //Comparacion de mensaje
+		{
+			break;
+		}
         snprintf(messageComplete, sizeof(messageComplete), "%s: %s", customer->user, buffer); //Construccion del mensaje completo
         writeLog(messageComplete); //Escritura en el archivo
         broadcastMessage(messageComplete, customer->socket); //Enviar el mensaje
